@@ -74,7 +74,6 @@ func doServerJob() {
 func doClientJob(otherProcess int, msg string) { //Envia uma mensagem "S" ou "F"
     buf := []byte(msg)
     
-    //otherServer
     _,err := CliConn[otherProcess].Write(buf)
     
     if err != nil {
@@ -87,9 +86,12 @@ func doClientJob(otherProcess int, msg string) { //Envia uma mensagem "S" ou "F"
 func initConnections() {
     id, _ = strconv.Atoi(os.Args[2])
     myPort = os.Args[2 + id]
-    nextPort = os.Args[3 + id]
     nServers = len(os.Args) - 3
-    /* Esse 2 tira o nome (no caso Process) e tira a primeira porta (que é a minha). As demais portas são dos outros processos*/
+    if (id == nServers) {
+        nextPort = os.Args[3]
+    } else {
+        nextPort = os.Args[3 + id]
+    }
 
     /* Lets prepare a address at any address at port 10001*/   
     ServerAddr, err := net.ResolveUDPAddr("udp", myPort)
@@ -101,9 +103,9 @@ func initConnections() {
     // Outros códigos para deixar ok as conexões com os servidores dos outros processos
  
     for i := 0; i < nServers; i++ {
-        if (i == id -1) {
-            continue
-        }
+        // if (i == id -1) {
+        //     continue
+        // }
 
         LocalAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:0")
         CheckError(err)
@@ -130,15 +132,13 @@ func readInput(ch chan string) {
 func candidate(cand int) {
     msg := "s" + strconv.Itoa(cand)
 
-    np, _ := strconv.Atoi(nextPort)
-    doClientJob(np, msg)
+    doClientJob(id % nServers, msg)
 }
 
 func elect(cand int) {
     msg := "f" + strconv.Itoa(cand)
 
-    np, _ := strconv.Atoi(nextPort)
-    doClientJob(np, msg)
+    doClientJob(id % nServers, msg)
 }
 
 func main() {
@@ -148,7 +148,7 @@ func main() {
     // O fechamento de conexões devem ficar aqui, assim só fecha conexão quando a main morrer
     defer ServerConn.Close()
 
-    for i := 0; i < nServers - 1; i++ {
+    for i := 0; i < nServers; i++ {
         defer CliConn[i].Close()
     }
 
@@ -168,6 +168,7 @@ func main() {
 				fmt.Printf("Read from keyboard: %s \n", x)
 
                 if x == "start" { // start election
+                    time.Sleep(time.Second*5)
                     candidate(id)
                 }
 
